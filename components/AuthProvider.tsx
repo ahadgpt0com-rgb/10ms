@@ -33,12 +33,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser({
             uid: firebaseUser.uid,
             username: data.username,
-            profilePic: data.profilePic
+            profilePic: data.profilePic,
+            role: data.role
           });
         } else {
           setUser({
             uid: firebaseUser.uid,
-            username: "Journal User"
+            username: "Journal User",
+            role: "student"
           });
         }
       } else {

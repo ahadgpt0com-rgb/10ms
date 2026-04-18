@@ -1,34 +1,36 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Global Deny
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // Helper Functions
     function isSignedIn() { return request.auth != null; }
     function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
     function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function isAdmin() { 
+      return isSignedIn() && (
+        request.auth.token.email == "admin_boss@myspace.app" || 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin")
+      ); 
+    }
     
-    // Users Collection (Private Journal User)
     match /users/{userId} {
-      // User Validation Helper
       function isValidUser(data) {
-        return data.keys().hasAll(['username', 'createdAt']) &&
-               (data.keys().hasOnly(['username', 'createdAt', 'profilePic'])) &&
+        return data.keys().hasAll(['username', 'role', 'createdAt']) &&
+               (data.keys().hasOnly(['username', 'role', 'createdAt', 'profilePic'])) &&
                data.username is string && data.username.size() > 0 && data.username.size() <= 64 &&
+               data.role is string && (data.role == "student" || data.role == "admin") &&
                data.createdAt is number &&
                (!('profilePic' in data) || (data.profilePic is string && data.profilePic.size() <= 5242880));
       }
 
       function isValidUserUpdate(data) {
-        return isValidUser(data) && data.createdAt == existing().createdAt;
+        return isValidUser(data) && data.createdAt == existing().createdAt && data.role == existing().role;
       }
       
-      // Read: Only the authenticated user can read their own profile
       allow get: if isOwner(userId) && isValidId(userId);
       allow list: if isOwner(userId) && resource.data.userId == request.auth.uid; 
       
@@ -39,24 +41,28 @@ service cloud.firestore {
       );
       
       allow delete: if isOwner(userId) && isValidId(userId);
+    }
 
-      // Entries Subcollection
-      match /entries/{entryId} {
-        function isValidJournalEntry(data) {
-           return data.keys().hasAll(['userId', 'content', 'createdAt']) &&
-                  data.keys().size() == 3 &&
-                  data.userId is string && data.userId == request.auth.uid &&
-                  data.content is string && data.content.size() > 0 && data.content.size() <= 100000 &&
-                  data.createdAt is number;
-        }
-
-        allow get: if isOwner(userId) && isValidId(userId) && isValidId(entryId);
-        allow list: if isOwner(userId) && isValidId(userId);
-        
-        allow create: if isOwner(userId) && isValidId(userId) && isValidId(entryId) && isValidJournalEntry(incoming());
-        allow update: if false; 
-        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(entryId);
+    match /posts/{postId} {
+      function isValidPost(data) {
+         return data.keys().hasAll(['userId', 'content', 'createdAt']) &&
+                data.keys().size() == 3 &&
+                data.userId is string && data.userId == request.auth.uid &&
+                data.content is string && data.content.size() > 0 && data.content.size() <= 100000 &&
+                data.createdAt is number;
       }
+
+      allow read: if isSignedIn() && isValidId(postId);
+      allow list: if isSignedIn();
+      
+      allow create: if isSignedIn() && isValidId(postId) && isValidPost(incoming());
+      allow update: if false; 
+      allow delete: if isAdmin() && isValidId(postId);
+    }
+    
+    match /settings/{settingId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
   }
 }

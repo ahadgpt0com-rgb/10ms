@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
 import { auth, signInWithEmailAndPassword, createUserWithEmailAndPassword, db } from "@/lib/firebase";
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 
 export default function PinLoginScreen() {
   const { user, loading: authLoading } = useAuth();
@@ -19,19 +19,13 @@ export default function PinLoginScreen() {
     }
   }, [user, authLoading, router]);
 
-  useEffect(() => {
-    if (pin.length === 4) {
-      handlePinComplete(pin);
-    }
-  }, [pin]);
-
   const handlePinComplete = async (enteredPin: string) => {
     setLoading(true);
     setError("");
     try {
       await new Promise(r => setTimeout(r, 400));
       if (enteredPin === "2526") {
-        const email = "journal2526@myspace.app";
+        const email = "shared_2526@myspace.app";
         const password = "secure2526_password!";
         
         try {
@@ -40,7 +34,8 @@ export default function PinLoginScreen() {
           if (e.code === "auth/user-not-found" || e.code === "auth/invalid-credential") {
              const cred = await createUserWithEmailAndPassword(auth, email, password);
              await setDoc(doc(db, "users", cred.user.uid), {
-               username: "My Journal",
+               username: "Community Member",
+               role: "student",
                createdAt: Date.now()
              });
           } else {
@@ -53,12 +48,19 @@ export default function PinLoginScreen() {
         setPin("");
       }
     } catch (err: any) {
-      alert(err.message || "Login failed");
+      setError(err.message || "Login failed");
       setPin("");
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (pin.length === 4) {
+      // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
+      handlePinComplete(pin);
+    }
+  }, [pin]);
 
   const handleKey = (key: string) => {
     if (loading || pin.length >= 4) return;
@@ -74,9 +76,9 @@ export default function PinLoginScreen() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (/^[0-9]$/.test(e.key)) {
-        handleKey(e.key);
+        if (!loading && pin.length < 4) setPin(p => p + e.key);
       } else if (e.key === "Backspace") {
-        handleBackspace();
+        if (!loading) setPin(p => p.slice(0, -1));
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -86,7 +88,7 @@ export default function PinLoginScreen() {
   if (authLoading || user) {
     return (
       <div className="min-h-screen bg-nat-bg flex items-center justify-center">
-        <span className="text-lg font-medium text-nat-muted animate-pulse">Loading CampusConnect...</span>
+        <span className="text-lg font-medium text-nat-muted animate-pulse">Loading My Space...</span>
       </div>
     );
   }
@@ -94,11 +96,11 @@ export default function PinLoginScreen() {
   return (
     <div className="min-h-screen bg-nat-bg flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-sm flex flex-col items-center">
-        <h1 className="text-4xl font-serif italic text-nat-accent mb-2">My Space</h1>
+        <h1 className="text-4xl font-serif italic text-nat-accent mb-2">10ms-hsc-26</h1>
         <p className="text-nat-muted mb-12 text-xs uppercase tracking-widest font-semibold">Security Active</p>
         
         {/* PIN Dots */}
-        <div className="flex gap-6 mb-12 h-4">
+        <div className="flex gap-6 mb-8 h-4">
           {[0, 1, 2, 3].map((index) => (
             <div 
               key={index} 
@@ -106,6 +108,8 @@ export default function PinLoginScreen() {
             />
           ))}
         </div>
+
+        {error && <p className="text-red-500 text-sm text-center mb-6">{error}</p>}
 
         {/* Keypad */}
         <div className="grid grid-cols-3 gap-x-8 gap-y-6">

@@ -1,52 +1,79 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/components/AuthProvider";
-import { db } from "@/lib/firebase";
-import { doc, updateDoc } from "firebase/firestore";
+import { auth, signInWithEmailAndPassword, createUserWithEmailAndPassword, db } from "@/lib/firebase";
+import { doc, setDoc, onSnapshot } from "firebase/firestore";
+import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Upload, Image as ImageIcon } from "lucide-react";
+import { ShieldAlert, Link as LinkIcon, Save } from "lucide-react";
 
 export default function ProfilePage() {
   const { user } = useAuth();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
   const [error, setError] = useState("");
+  
+  const [adminPassword, setAdminPassword] = useState("");
+  const [adminLoading, setAdminLoading] = useState(false);
+  const [adminError, setAdminError] = useState("");
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const [groupLink, setGroupLink] = useState("");
+  const [isSavingLink, setIsSavingLink] = useState(false);
 
-    if (!file.type.startsWith("image/")) {
-      setError("Please select a valid image file.");
-      return;
+  useEffect(() => {
+    if (user?.role !== "admin") return;
+    const unsub = onSnapshot(doc(db, "settings", "global"), (docSnap) => {
+       if (docSnap.exists() && docSnap.data().whatsappLink) {
+         setGroupLink(docSnap.data().whatsappLink);
+       }
+    });
+    return () => unsub();
+  }, [user]);
+
+  const handleSaveLink = async () => {
+    setIsSavingLink(true);
+    try {
+      await setDoc(doc(db, "settings", "global"), {
+        whatsappLink: groupLink
+      }, { merge: true });
+      alert("WhatsApp link updated globally!");
+    } catch(e) {
+      console.error(e);
+      alert("Failed to update link");
+    } finally {
+      setIsSavingLink(false);
     }
-
-    if (file.size > 5 * 1024 * 1024) {
-      setError("Image must be less than 5MB.");
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const dataUrl = event.target?.result as string;
-      if (user && dataUrl) {
-        try {
-          await updateDoc(doc(db, "users", user.uid), {
-            profilePic: dataUrl
-          });
-          setError("");
-        } catch (e) {
-          console.error(e);
-          setError("Failed to upload. Rules blocked or network issue.");
-        }
-      }
-    };
-    reader.readAsDataURL(file);
   };
 
-  const handleUploadClick = () => {
-    fileInputRef.current?.click();
+  const handleAdminLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAdminLoading(true);
+    setAdminError("");
+
+    if (adminPassword === "mogamoga") {
+      const email = "admin_boss@myspace.app";
+      const password = "secure_mogamoga!";
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+        router.push("/dashboard");
+      } catch (e: any) {
+         if (e.code === "auth/user-not-found" || e.code === "auth/invalid-credential") {
+            const cred = await createUserWithEmailAndPassword(auth, email, password);
+            await setDoc(doc(db, "users", cred.user.uid), {
+              username: "Admin",
+              role: "admin",
+              createdAt: Date.now()
+            });
+            router.push("/dashboard");
+         } else {
+            setAdminError(e.message);
+         }
+      }
+    } else {
+      setAdminError("Invalid admin access key.");
+    }
+    setAdminLoading(false);
   };
 
   if (!user) return null;
@@ -54,8 +81,8 @@ export default function ProfilePage() {
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
-        <h1 className="text-2xl font-serif text-nat-text mb-2">My Profile</h1>
-        <p className="text-nat-muted">Manage your personal information and student avatar.</p>
+        <h1 className="text-2xl font-serif text-nat-text mb-2">Settings</h1>
+        <p className="text-nat-muted">Manage your personal information, avatar, and system access.</p>
       </div>
 
       <Card className="rounded-2xl shadow-nat-card border-none bg-white">
@@ -85,28 +112,72 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              <div className="pt-4 space-y-3">
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  ref={fileInputRef} 
-                  onChange={handleFileChange} 
-                  className="hidden" 
-                />
-                <Button 
-                  onClick={handleUploadClick}
-                  className="w-full md:w-auto"
-                >
-                  <Upload className="w-4 h-4 mr-2" />
-                  Upload Photo
-                </Button>
-                
-                {error && <p className="text-red-500 text-sm">{error}</p>}
-              </div>
+              {error && <p className="text-red-500 text-sm mt-4">{error}</p>}
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {user.role === "admin" && (
+        <Card className="rounded-2xl shadow-nat-card border border-nat-border bg-white mt-8 overflow-hidden relative">
+          <CardContent className="p-8">
+            <div className="flex items-center gap-2 mb-2">
+              <LinkIcon className="w-5 h-5 text-nat-accent" />
+              <h3 className="text-lg font-semibold text-nat-text">WhatsApp Group Link</h3>
+            </div>
+            <p className="text-sm text-nat-muted mb-6">Update the link that users use to join the community.</p>
+            
+            <div className="flex flex-col sm:flex-row gap-4">
+              <input
+                type="url"
+                value={groupLink}
+                onChange={(e) => setGroupLink(e.target.value)}
+                placeholder="https://chat.whatsapp.com/..."
+                className="flex-1 bg-nat-sidebar border-none rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-nat-accent transition-all"
+              />
+              <Button 
+                onClick={handleSaveLink}
+                disabled={!groupLink || isSavingLink} 
+                className="rounded-xl py-6 px-8 shadow-sm"
+              >
+                <Save className="w-4 h-4 mr-2" />
+                {isSavingLink ? "Saving..." : "Save Link"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {user.role !== "admin" && (
+        <Card className="rounded-2xl shadow-nat-card border border-red-100 bg-white mt-8 overflow-hidden relative">
+          <div className="absolute top-0 left-0 w-1 h-full bg-red-400" />
+          <CardContent className="p-8">
+            <div className="flex items-center gap-2 mb-2">
+              <ShieldAlert className="w-5 h-5 text-red-400" />
+              <h3 className="text-lg font-semibold text-red-500">Admin Portal</h3>
+            </div>
+            <p className="text-sm text-nat-muted mb-6">Enter the master passcode to elevate your session privileges.</p>
+            
+            <form onSubmit={handleAdminLogin} className="flex flex-col sm:flex-row gap-4">
+              <input
+                type="password"
+                value={adminPassword}
+                onChange={(e) => setAdminPassword(e.target.value)}
+                placeholder="Enter passcode..."
+                className="flex-1 bg-nat-sidebar border-none rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-400 transition-all font-mono"
+              />
+              <Button 
+                type="submit" 
+                disabled={!adminPassword || adminLoading} 
+                className="bg-red-500 hover:bg-red-600 text-white rounded-xl py-6 px-8 shadow-sm"
+              >
+                {adminLoading ? "Authenticating..." : "Authorize"}
+              </Button>
+            </form>
+            {adminError && <p className="text-red-500 text-sm mt-3">{adminError}</p>}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

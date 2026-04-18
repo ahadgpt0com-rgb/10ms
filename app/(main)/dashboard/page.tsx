@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { db } from "@/lib/firebase";
-import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, addDoc, deleteDoc, doc } from "firebase/firestore";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
@@ -24,7 +24,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!user) return;
 
-    const q = query(collection(db, "users", user.uid, "entries"), orderBy("createdAt", "desc"));
+    const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const postsData = snapshot.docs.map(docSnap => ({
         id: docSnap.id,
@@ -42,7 +42,7 @@ export default function DashboardPage() {
 
     setIsSubmitting(true);
     try {
-      await addDoc(collection(db, "users", user.uid, "entries"), {
+      await addDoc(collection(db, "posts"), {
         userId: user.uid,
         content: newPost.trim(),
         createdAt: Date.now()
@@ -57,11 +57,12 @@ export default function DashboardPage() {
 
   const handleDeletePost = async (postId: string) => {
     if (!user) return;
-    if (confirm("Are you sure you want to delete this entry?")) {
+    if (confirm("Are you sure you want to delete this message?")) {
        try {
-         await deleteDoc(doc(db, "users", user.uid, "entries", postId));
-       } catch (e) {
+         await deleteDoc(doc(db, "posts", postId));
+       } catch (e: any) {
          console.error(e);
+         alert("Delete Failed: " + (e.message || "Permission Denied"));
        }
     }
   };
@@ -71,7 +72,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
       <div>
-        <h1 className="text-3xl font-serif text-nat-text mb-2">My Journal</h1>
+        <h1 className="text-3xl font-serif text-nat-text mb-2">Share Your Story</h1>
         <p className="text-nat-muted">A private space for your thoughts, completely locked and secure.</p>
       </div>
 
@@ -100,15 +101,17 @@ export default function DashboardPage() {
             <CardContent className="p-6">
               <div className="flex justify-between items-center mb-4">
                 <span className="text-sm font-semibold text-nat-accent tracking-wide uppercase">
-                  {new Date(post.createdAt).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                  {new Date(post.createdAt).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute:'2-digit' })}
                 </span>
-                <button
-                  onClick={() => handleDeletePost(post.id)}
-                  className="text-nat-muted hover:text-red-400 transition-colors p-2 rounded-full hover:bg-red-50"
-                  title="Delete entry"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                {user.role === "admin" && (
+                  <button
+                    onClick={() => handleDeletePost(post.id)}
+                    className="text-nat-muted hover:text-red-400 transition-colors p-2 rounded-full hover:bg-red-50"
+                    title="Delete message"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
               </div>
               <p className="text-nat-text text-[15px] leading-relaxed whitespace-pre-wrap">{post.content}</p>
             </CardContent>

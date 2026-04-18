@@ -1,0 +1,51 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A student or admin user",
+      "type": "object",
+      "properties": {
+        "username": { "type": "string" },
+        "role": { "type": "string", "enum": ["student", "admin"] },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["username", "role", "createdAt"]
+    },
+    "Post": {
+      "title": "Post",
+      "description": "A community post",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "username": { "type": "string" },
+        "content": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["userId", "username", "content", "createdAt"]
+    },
+    "Friend": {
+      "title": "Friend",
+      "description": "A friend connection",
+      "type": "object",
+      "properties": {
+        "friendUsername": { "type": "string" },
+        "addedAt": { "type": "number" }
+      },
+      "required": ["friendUsername", "addedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles"
+    },
+    "/posts/{postId}": {
+      "schema": { "$ref": "#/entities/Post" },
+      "description": "Global feed of posts"
+    },
+    "/users/{userId}/friends/{friendId}": {
+      "schema": { "$ref": "#/entities/Friend" },
+      "description": "User's friends list"
+    }
+  }
+}

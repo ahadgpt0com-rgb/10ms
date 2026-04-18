@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+@theme {
+  --color-nat-bg: #FAF9F6;
+  --color-nat-sidebar: #F1EFE9;
+  --color-nat-accent: #6D8B74;
+  --color-nat-accent-hover: #5F7A65;
+  --color-nat-text: #3C403D;
+  --color-nat-muted: #8E9791;
+  --color-nat-input: #F5F4F0;
+  --shadow-nat-card: 0 4px 12px rgba(0,0,0,0.03);
+  --color-nat-border: rgba(0,0,0,0.05);
+}

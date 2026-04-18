@@ -1,0 +1,6 @@
+{
+  "name": "Student Connect",
+  "description": "A modern, responsive student community platform featuring PIN-based authentication, a social feed, a friends system, and an admin panel.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": []
+}

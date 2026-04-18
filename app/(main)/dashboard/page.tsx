@@ -1,0 +1,103 @@
+"use client";
+
+import { useState } from "react";
+import { useAuth } from "@/components/AuthProvider";
+import { localDb, useStoreCollection } from "@/lib/store";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { formatDistanceToNow } from "date-fns";
+import { Trash2 } from "lucide-react";
+
+interface Post {
+  id: string;
+  userId: string;
+  username: string;
+  content: string;
+  createdAt: number;
+}
+
+export default function DashboardPage() {
+  const { user } = useAuth();
+  const posts = useStoreCollection<Post>("posts");
+  const [newPost, setNewPost] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handlePostSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPost.trim() || !user) return;
+
+    setIsSubmitting(true);
+    localDb.addPost({
+      userId: user.uid,
+      username: user.username,
+      content: newPost.trim()
+    });
+    setNewPost("");
+    setIsSubmitting(false);
+  };
+
+  const handleDeletePost = (postId: string) => {
+    if (confirm("Are you sure you want to delete this post?")) {
+       localDb.deletePost(postId);
+    }
+  };
+
+  if (!user) return null;
+
+  return (
+    <div className="space-y-6 max-w-2xl mx-auto">
+      <div>
+        <h1 className="text-3xl font-serif text-nat-text mb-2">My Journal</h1>
+        <p className="text-nat-muted">A private space for your thoughts, completely locked and secure.</p>
+      </div>
+
+      <Card className="bg-white rounded-3xl shadow-nat-card border-none">
+        <CardContent className="p-6">
+          <form onSubmit={handlePostSubmit} className="flex flex-col gap-4">
+            <textarea
+              className="w-full resize-none bg-transparent border-none focus:outline-none focus:ring-0 text-nat-text text-lg placeholder-nat-muted min-h-[100px]"
+              value={newPost}
+              onChange={(e) => setNewPost(e.target.value)}
+              placeholder="What's on your mind today...?"
+              disabled={isSubmitting}
+            />
+            <div className="flex justify-end">
+              <Button type="submit" disabled={!newPost.trim() || isSubmitting} className="rounded-full px-6">
+                Save Entry
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      <div className="space-y-6 mt-8">
+        {posts.map((post) => (
+          <Card key={post.id} className="transition-all rounded-3xl shadow-nat-card border-none bg-[#fdfbf7]">
+            <CardContent className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-sm font-semibold text-nat-accent tracking-wide uppercase">
+                  {new Date(post.createdAt).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                </span>
+                <button
+                  onClick={() => handleDeletePost(post.id)}
+                  className="text-nat-muted hover:text-red-400 transition-colors p-2 rounded-full hover:bg-red-50"
+                  title="Delete entry"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+              <p className="text-nat-text text-[15px] leading-relaxed whitespace-pre-wrap">{post.content}</p>
+            </CardContent>
+          </Card>
+        ))}
+        
+        {posts.length === 0 && (
+          <div className="text-center py-16 text-nat-muted italic">
+            Your journal is empty. Write your first entry above.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

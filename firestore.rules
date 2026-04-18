@@ -1,7 +1,6 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
     // Global Deny
     match /{document=**} {
       allow read, write: if false;
@@ -9,78 +8,55 @@ service cloud.firestore {
 
     // Helper Functions
     function isSignedIn() { return request.auth != null; }
-    function isAdmin() { return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin"; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
     function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
     
-    // Users Collection
+    // Users Collection (Private Journal User)
     match /users/{userId} {
       // User Validation Helper
       function isValidUser(data) {
-        return data.keys().hasAll(['username', 'role', 'createdAt']) &&
-               data.keys().size() == 3 &&
-               data.username is string && data.username.size() > 0 && data.username.size() <= 30 &&
-               data.role is string && (data.role == "student" || data.role == "admin") &&
-               data.createdAt is timestamp;
+        return data.keys().hasAll(['username', 'createdAt']) &&
+               (data.keys().hasOnly(['username', 'createdAt', 'profilePic'])) &&
+               data.username is string && data.username.size() > 0 && data.username.size() <= 64 &&
+               data.createdAt is number &&
+               (!('profilePic' in data) || (data.profilePic is string && data.profilePic.size() <= 5242880));
+      }
+
+      function isValidUserUpdate(data) {
+        return isValidUser(data) && data.createdAt == existing().createdAt;
       }
       
-      // Read: Users can read all other user profiles (for searching & friend list displaying)
-      allow get: if isSignedIn() && isValidId(userId);
-      allow list: if isSignedIn(); 
-      // It is a student app, everyone is searchable. Note: in a high security environment, we might isolate this.
+      // Read: Only the authenticated user can read their own profile
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if isOwner(userId) && resource.data.userId == request.auth.uid; 
       
-      // Create: Users can create their own profile, but they CANNOT assign themselves "admin".
-      allow create: if isSignedIn() && request.auth.uid == userId && isValidId(userId) && isValidUser(incoming()) && incoming().role == "student" && incoming().createdAt == request.time;
+      allow create: if isOwner(userId) && isValidId(userId) && isValidUser(incoming());
       
-      // Update: Admin can update, User can update (but not their role)
-      allow update: if isSignedIn() && isValidId(userId) && isValidUser(incoming()) && (
-        isAdmin() ||
-        (request.auth.uid == userId && incoming().diff(existing()).affectedKeys().hasOnly(['username']) && incoming().role == existing().role && incoming().createdAt == existing().createdAt)
+      allow update: if isOwner(userId) && isValidId(userId) && isValidUserUpdate(incoming()) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['profilePic'])
       );
       
-      // Delete: Only admins
-      allow delete: if isAdmin() && isValidId(userId);
+      allow delete: if isOwner(userId) && isValidId(userId);
 
-      // Friends Subcollection
-      match /friends/{friendId} {
-        function isValidFriend(data) {
-           return data.keys().hasAll(['friendUsername', 'addedAt']) &&
-                  data.keys().size() == 2 &&
-                  data.friendUsername is string && data.friendUsername.size() <= 30 &&
-                  data.addedAt is timestamp;
+      // Entries Subcollection
+      match /entries/{entryId} {
+        function isValidJournalEntry(data) {
+           return data.keys().hasAll(['userId', 'content', 'createdAt']) &&
+                  data.keys().size() == 3 &&
+                  data.userId is string && data.userId == request.auth.uid &&
+                  data.content is string && data.content.size() > 0 && data.content.size() <= 100000 &&
+                  data.createdAt is number;
         }
 
-        allow read: if isSignedIn() && request.auth.uid == userId; // Only the user can read their friends
-        allow create: if isSignedIn() && request.auth.uid == userId && isValidId(friendId) && isValidFriend(incoming()) && incoming().addedAt == request.time;
-        allow update: if false; // Cannot update a friend struct
-        allow delete: if isSignedIn() && request.auth.uid == userId && isValidId(friendId);
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(entryId);
+        allow list: if isOwner(userId) && isValidId(userId);
+        
+        allow create: if isOwner(userId) && isValidId(userId) && isValidId(entryId) && isValidJournalEntry(incoming());
+        allow update: if false; 
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(entryId);
       }
-    }
-
-    // Posts Collection
-    match /posts/{postId} {
-      function isValidPost(data) {
-         return data.keys().hasAll(['userId', 'username', 'content', 'createdAt']) &&
-                data.keys().size() == 4 &&
-                data.userId is string && data.userId == request.auth.uid &&
-                data.username is string && data.username.size() <= 30 &&
-                data.content is string && data.content.size() > 0 && data.content.size() <= 2000 &&
-                data.createdAt is timestamp;
-      }
-
-      // Read: Anyone signed in can read posts
-      allow read: if isSignedIn() && isValidId(postId);
-      allow list: if isSignedIn();
-
-      // Create: Signed in users can create posts
-      allow create: if isSignedIn() && isValidId(postId) && isValidPost(incoming()) && incoming().createdAt == request.time;
-      
-      // Update: Users cannot edit posts in this simple version
-      allow update: if false;
-
-      // Delete: Admin or the Original Author
-      allow delete: if isSignedIn() && isValidId(postId) && (isAdmin() || request.auth.uid == existing().userId);
     }
   }
 }

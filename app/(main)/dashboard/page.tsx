@@ -1,45 +1,68 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/components/AuthProvider";
-import { localDb, useStoreCollection } from "@/lib/store";
+import { db } from "@/lib/firebase";
+import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc } from "firebase/firestore";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { formatDistanceToNow } from "date-fns";
 import { Trash2 } from "lucide-react";
 
 interface Post {
   id: string;
   userId: string;
-  username: string;
   content: string;
   createdAt: number;
 }
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const posts = useStoreCollection<Post>("posts");
+  const [posts, setPosts] = useState<Post[]>([]);
   const [newPost, setNewPost] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const q = query(collection(db, "users", user.uid, "entries"), orderBy("createdAt", "desc"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const postsData = snapshot.docs.map(docSnap => ({
+        id: docSnap.id,
+        ...docSnap.data()
+      })) as Post[];
+      setPosts(postsData);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
 
   const handlePostSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPost.trim() || !user) return;
 
     setIsSubmitting(true);
-    localDb.addPost({
-      userId: user.uid,
-      username: user.username,
-      content: newPost.trim()
-    });
-    setNewPost("");
-    setIsSubmitting(false);
+    try {
+      await addDoc(collection(db, "users", user.uid, "entries"), {
+        userId: user.uid,
+        content: newPost.trim(),
+        createdAt: Date.now()
+      });
+      setNewPost("");
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleDeletePost = (postId: string) => {
-    if (confirm("Are you sure you want to delete this post?")) {
-       localDb.deletePost(postId);
+  const handleDeletePost = async (postId: string) => {
+    if (!user) return;
+    if (confirm("Are you sure you want to delete this entry?")) {
+       try {
+         await deleteDoc(doc(db, "users", user.uid, "entries", postId));
+       } catch (e) {
+         console.error(e);
+       }
     }
   };
 

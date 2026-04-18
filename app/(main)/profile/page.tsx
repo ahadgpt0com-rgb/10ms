@@ -2,7 +2,8 @@
 
 import { useRef, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
-import { localDb } from "@/lib/store";
+import { db } from "@/lib/firebase";
+import { doc, updateDoc } from "firebase/firestore";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Upload, Image as ImageIcon } from "lucide-react";
@@ -27,11 +28,18 @@ export default function ProfilePage() {
     }
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       const dataUrl = event.target?.result as string;
       if (user && dataUrl) {
-        localDb.updateProfilePic(user.uid, dataUrl);
-        setError("");
+        try {
+          await updateDoc(doc(db, "users", user.uid), {
+            profilePic: dataUrl
+          });
+          setError("");
+        } catch (e) {
+          console.error(e);
+          setError("Failed to upload. Rules blocked or network issue.");
+        }
       }
     };
     reader.readAsDataURL(file);

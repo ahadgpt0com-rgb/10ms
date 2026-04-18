@@ -4,8 +4,9 @@ import { useAuth } from "@/components/AuthProvider";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect } from "react";
 import Link from "next/link";
-import { localDb } from "@/lib/store";
-import { GraduationCap, Home, Users, ShieldAlert, LogOut } from "lucide-react";
+import { auth } from "@/lib/firebase";
+import { signOut } from "firebase/auth";
+import { GraduationCap, Home, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
@@ -24,7 +25,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   }
 
   const handleLogout = async () => {
-    localDb.logout();
+    await signOut(auth);
     router.push("/");
   };
 

@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
-import { localDb } from "@/lib/store";
+import { auth, signInWithEmailAndPassword, createUserWithEmailAndPassword, db } from "@/lib/firebase";
+import { doc, setDoc, getDoc } from "firebase/firestore";
 
 export default function PinLoginScreen() {
   const { user, loading: authLoading } = useAuth();
@@ -28,14 +29,31 @@ export default function PinLoginScreen() {
     setLoading(true);
     setError("");
     try {
-      await new Promise(r => setTimeout(r, 400)); // Smooth transition delay
+      await new Promise(r => setTimeout(r, 400));
       if (enteredPin === "2526") {
-        localDb.loginOrRegister(enteredPin);
+        const email = "journal2526@myspace.app";
+        const password = "secure2526_password!";
+        
+        try {
+          await signInWithEmailAndPassword(auth, email, password);
+        } catch (e: any) {
+          if (e.code === "auth/user-not-found" || e.code === "auth/invalid-credential") {
+             const cred = await createUserWithEmailAndPassword(auth, email, password);
+             await setDoc(doc(db, "users", cred.user.uid), {
+               username: "My Journal",
+               createdAt: Date.now()
+             });
+          } else {
+             console.error(e);
+             throw new Error("Make sure Email/Password is enabled in Firebase Console.");
+          }
+        }
       } else {
         setError("Access Denied.");
         setPin("");
       }
     } catch (err: any) {
+      alert(err.message || "Login failed");
       setPin("");
     } finally {
       setLoading(false);

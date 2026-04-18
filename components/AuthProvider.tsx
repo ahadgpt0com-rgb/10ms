@@ -1,13 +1,15 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { localDb } from "@/lib/store";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth, db } from "@/lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
 
 interface AppUser {
   uid: string;
   username: string;
-  role: "student" | "admin";
   profilePic?: string;
+  role?: string;
 }
 
 interface AuthContextType {
@@ -22,14 +24,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const checkAuth = () => {
-      setUser(localDb.getCurrentUser());
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        const docRef = doc(db, "users", firebaseUser.uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setUser({
+            uid: firebaseUser.uid,
+            username: data.username,
+            profilePic: data.profilePic
+          });
+        } else {
+          setUser({
+            uid: firebaseUser.uid,
+            username: "Journal User"
+          });
+        }
+      } else {
+        setUser(null);
+      }
       setLoading(false);
-    };
+    });
     
-    checkAuth();
-    window.addEventListener("auth_changed", checkAuth);
-    return () => window.removeEventListener("auth_changed", checkAuth);
+    return () => unsubscribe();
   }, []);
 
   return (

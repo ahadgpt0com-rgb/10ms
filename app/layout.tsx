@@ -7,8 +7,8 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 const lora = Lora({ subsets: ['latin'], variable: '--font-serif' });
 
 export const metadata: Metadata = {
-  title: 'CampusConnect | Student Community',
-  description: 'A modern student community platform.',
+  title: '10ms-hsc-26 | Student Community',
+  description: '10ms-hsc-26 student community platform.',
 };
 
 export default function RootLayout({children}: {children: React.ReactNode}) {

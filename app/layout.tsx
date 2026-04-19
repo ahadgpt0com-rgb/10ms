@@ -1,12 +1,11 @@
 import type { Metadata } from 'next';
 import { Inter, Lora } from 'next/font/google';
 import './globals.css';
-import { Auth_Provider } from '@/components/AuthProvider';
+import { AuthProvider } from '@/components/AuthProvider'; // আন্ডারস্কোর (_) সরিয়ে দেওয়া হয়েছে
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 const lora = Lora({ subsets: ['latin'], variable: '--font-serif' });
 
-// icons প্রপার্টি পুরোপুরি সরিয়ে দিন যদি ফাইল app/ ফোল্ডারে থাকে
 export const metadata: Metadata = {
   title: '10ms-hsc-26 | Student Community',
   description: '10ms-hsc-26 student community platform.',

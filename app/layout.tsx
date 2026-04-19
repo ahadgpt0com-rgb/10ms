@@ -10,6 +10,11 @@ const lora = Lora({ subsets: ['latin'], variable: '--font-serif' });
 export const metadata: Metadata = {
   title: '10ms-hsc-26 | Student Community',
   description: '10ms-hsc-26 student community platform.',
+  openGraph: {
+    title: '10ms-hsc-26',
+    description: 'Student community platform.',
+    images: ['/favicon.ico'],
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

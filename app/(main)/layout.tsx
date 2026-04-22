@@ -27,15 +27,18 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const [whatsappGroupLink, setWhatsappGroupLink] = useState("https://chat.whatsapp.com/samplelink");
 
   useEffect(() => {
+    if (!user) return;
     import("firebase/firestore").then(({ doc, onSnapshot }) => {
       const unsub = onSnapshot(doc(db, "settings", "global"), (docSnap) => {
         if (docSnap.exists() && docSnap.data().whatsappLink) {
           setWhatsappGroupLink(docSnap.data().whatsappLink);
         }
+      }, (err) => {
+         console.warn("Failed to listen to global settings:", err);
       });
       return () => unsub();
     });
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -55,7 +58,12 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const navItems = [
     { name: "My Journal", href: "/dashboard", icon: Home },
     { name: "Settings", href: "/profile", icon: GraduationCap },
-  ];
+  ].filter(item => {
+    if (item.name === "Settings") {
+       return user.username.trim().toLowerCase() === "admin" || user.role === "admin";
+    }
+    return true;
+  });
 
   return (
     <div className="min-h-screen bg-nat-bg flex flex-col md:flex-row">

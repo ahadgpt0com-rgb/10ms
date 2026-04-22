@@ -28,16 +28,18 @@ service cloud.firestore {
       }
 
       function isValidUserUpdate(data) {
-        return isValidUser(data) && data.createdAt == existing().createdAt && data.role == existing().role;
+        return isValidUser(data) && data.createdAt == existing().createdAt;
       }
       
       allow get: if isOwner(userId) && isValidId(userId);
-      allow list: if isOwner(userId) && resource.data.userId == request.auth.uid; 
+      allow list: if isAdmin(); 
       
       allow create: if isOwner(userId) && isValidId(userId) && isValidUser(incoming());
       
       allow update: if isOwner(userId) && isValidId(userId) && isValidUserUpdate(incoming()) && (
-        incoming().diff(existing()).affectedKeys().hasOnly(['profilePic'])
+        incoming().diff(existing()).affectedKeys().hasOnly(['profilePic', 'username']) ||
+        (incoming().diff(existing()).affectedKeys().hasOnly(['profilePic', 'username', 'role']) && incoming().role == 'student') ||
+        (incoming().diff(existing()).affectedKeys().hasOnly(['role']) && incoming().role == 'admin')
       );
       
       allow delete: if isOwner(userId) && isValidId(userId);
@@ -46,10 +48,11 @@ service cloud.firestore {
     match /posts/{postId} {
       function isValidPost(data) {
          return data.keys().hasAll(['userId', 'content', 'createdAt']) &&
-                (data.keys().hasOnly(['userId', 'content', 'createdAt', 'reactions'])) &&
+                (data.keys().hasOnly(['userId', 'content', 'createdAt', 'reactions', 'authorName'])) &&
                 data.userId is string && data.userId == request.auth.uid &&
                 data.content is string && data.content.size() > 0 && data.content.size() <= 100000 &&
                 data.createdAt is number &&
+                (!('authorName' in data) || (data.authorName is string && data.authorName.size() <= 64)) &&
                 (!('reactions' in data) || data.reactions is map);
       }
 
@@ -57,6 +60,7 @@ service cloud.firestore {
          return data.userId == existing().userId && 
                 data.content == existing().content && 
                 data.createdAt == existing().createdAt &&
+                (!('authorName' in data) || data.authorName == existing().authorName) &&
                 (!('reactions' in data) || data.reactions is map);
       }
 

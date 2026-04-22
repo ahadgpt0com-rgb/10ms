@@ -3,11 +3,11 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { auth, signInWithEmailAndPassword, createUserWithEmailAndPassword, db } from "@/lib/firebase";
-import { doc, setDoc, onSnapshot } from "firebase/firestore";
+import { doc, setDoc, onSnapshot, collection, query, orderBy } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ShieldAlert, Link as LinkIcon, Save, Activity } from "lucide-react";
+import { ShieldAlert, Link as LinkIcon, Save, Activity, Users } from "lucide-react";
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -21,6 +21,8 @@ export default function ProfilePage() {
   const [groupLink, setGroupLink] = useState("");
   const [isSavingLink, setIsSavingLink] = useState(false);
   const [totalViews, setTotalViews] = useState(0);
+  
+  const [allUsers, setAllUsers] = useState<{id: string, username: string}[]>([]);
 
   useEffect(() => {
     if (user?.role !== "admin") return;
@@ -38,10 +40,21 @@ export default function ProfilePage() {
          setTotalViews(docSnap.data().totalViews);
        }
     });
+    
+    // All users list
+    const q = query(collection(db, "users"), orderBy("createdAt", "desc"));
+    const unsubUsers = onSnapshot(q, (snapshot) => {
+      const usersList = snapshot.docs.map(doc => ({
+        id: doc.id,
+        username: doc.data().username
+      }));
+      setAllUsers(usersList);
+    });
 
     return () => {
        unsubLink();
        unsubViews();
+       unsubUsers();
     };
   }, [user]);
 
@@ -65,24 +78,24 @@ export default function ProfilePage() {
     setAdminLoading(true);
     setAdminError("");
 
+    if (!user) {
+      setAdminError("User not signed in.");
+      setAdminLoading(false);
+      return;
+    }
+
     if (adminPassword === "mogamoga") {
       const email = "admin_boss@myspace.app";
       const password = "secure_mogamoga!";
       try {
-        await signInWithEmailAndPassword(auth, email, password);
-        router.push("/dashboard");
+        await setDoc(doc(db, "users", user.uid), {
+          role: "admin"
+        }, { merge: true });
+        
+        // Relogin implicitly happens via snapshot or reload
+        window.location.reload();
       } catch (e: any) {
-         if (e.code === "auth/user-not-found" || e.code === "auth/invalid-credential") {
-            const cred = await createUserWithEmailAndPassword(auth, email, password);
-            await setDoc(doc(db, "users", cred.user.uid), {
-              username: "Admin",
-              role: "admin",
-              createdAt: Date.now()
-            });
-            router.push("/dashboard");
-         } else {
-            setAdminError(e.message);
-         }
+         setAdminError("Failed to elevate privileges.");
       }
     } else {
       setAdminError("Invalid admin access key.");
@@ -175,6 +188,32 @@ export default function ProfilePage() {
                   <Save className="w-4 h-4 mr-2" />
                   {isSavingLink ? "Saving..." : "Save Link"}
                 </Button>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="rounded-2xl shadow-nat-card border border-nat-border bg-white overflow-hidden relative">
+            <CardContent className="p-8">
+              <div className="flex items-center gap-2 mb-2">
+                <Users className="w-5 h-5 text-nat-accent" />
+                <h3 className="text-lg font-semibold text-nat-text">Community Members</h3>
+              </div>
+              <p className="text-sm text-nat-muted mb-6">List of all members who have joined with their identities.</p>
+              
+              <div className="bg-nat-bg border border-nat-border rounded-xl p-4 max-h-[300px] overflow-y-auto">
+                {allUsers.length > 0 ? (
+                  <ul className="space-y-3">
+                    {allUsers.map((u, i) => (
+                      <li key={u.id} className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-nat-sidebar flex items-center justify-center text-xs font-bold text-nat-accent uppercase shrink-0">
+                          {u.username ? u.username.charAt(0) : "U"}
+                        </div>
+                        <span className="text-sm font-medium text-nat-text">{u.username}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-nat-muted text-center py-4">No members yet.</p>
+                )}
               </div>
             </CardContent>
           </Card>

@@ -12,6 +12,7 @@ interface Post {
   id: string;
   userId: string;
   content: string;
+  authorName?: string;
   createdAt: number;
   reactions?: Record<string, string>;
 }
@@ -143,6 +144,7 @@ export default function DashboardPage() {
     try {
       await addDoc(collection(db, "posts"), {
         userId: user.uid,
+        authorName: user.username || "Member",
         content: newPost.trim(),
         createdAt: Date.now()
       });
@@ -157,13 +159,16 @@ export default function DashboardPage() {
   const [whatsappGroupLink, setWhatsappGroupLink] = useState("");
 
   useEffect(() => {
+    if (!user) return;
     const unsub = onSnapshot(doc(db, "settings", "global"), (docSnap) => {
       if (docSnap.exists() && docSnap.data().whatsappLink) {
         setWhatsappGroupLink(docSnap.data().whatsappLink);
       }
+    }, (err) => {
+       console.warn("Failed to listen to global settings:", err);
     });
     return () => unsub();
-  }, []);
+  }, [user]);
 
   const handleDeletePost = async (postId: string) => {
     if (!user) return;
@@ -241,46 +246,58 @@ export default function DashboardPage() {
           <div className="divide-y divide-nat-border/50">
             {posts.map((post) => (
               <div key={post.id} className="p-6 transition-all hover:bg-black/[0.01]">
-                <div className="flex justify-between items-center mb-4">
-                  <span className="text-sm font-semibold text-nat-accent tracking-wide uppercase">
-                    {new Date(post.createdAt).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute:'2-digit' })}
-                  </span>
-                  {user.role === "admin" && (
-                    <button
-                      onClick={() => handleDeletePost(post.id)}
-                      className="text-nat-muted hover:text-red-400 transition-colors p-2 rounded-full hover:bg-red-50"
-                      title="Delete message"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-                <p className="text-nat-text text-[15px] leading-relaxed whitespace-pre-wrap">
-                  {post.content.split(/(#\w+)/g).map((part, i) => 
-                    part.startsWith('#') ? (
-                      <span key={i} className="text-nat-accent font-medium hover:underline cursor-pointer">{part}</span>
-                    ) : (
-                      <span key={i}>{part}</span>
-                    )
-                  )}
-                </p>
-                <div className="mt-5 flex flex-wrap gap-2">
-                  {EMOJIS.map(emoji => {
-                    const postReactions = post.reactions || {};
-                    const count = Object.values(postReactions).filter(e => e === emoji).length;
-                    const hasReacted = postReactions[user.uid] === emoji;
-                    
-                    return (
-                      <button
-                        key={emoji}
-                        onClick={() => handleReaction(post.id, post.reactions, emoji)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm transition-all border ${hasReacted ? 'bg-[#25D366]/10 border-[#25D366]/30 shadow-sm' : 'bg-white border-nat-border hover:bg-nat-sidebar'}`}
-                      >
-                        <span>{emoji}</span>
-                        {count > 0 && <span className={`font-semibold text-xs ${hasReacted ? 'text-green-700' : 'text-nat-muted'}`}>{count}</span>}
-                      </button>
-                    );
-                  })}
+                <div className="flex items-start gap-4 mb-4">
+                  <div className="w-10 h-10 rounded-full bg-nat-sidebar flex items-center justify-center font-bold text-nat-accent uppercase shadow-sm border border-nat-border shrink-0">
+                     {(user.role === "admin" || String(user.username).trim() === "Admin") && post.authorName ? post.authorName.charAt(0) : "A"}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[15px] font-bold text-nat-text tracking-tight">
+                        {user.role === "admin" || String(user.username).trim() === "Admin" ? (post.authorName || "Community Member") : "Anonymous"}
+                      </p>
+                      <div className="flex items-center gap-3">
+                         <span className="text-[11px] font-semibold text-nat-muted tracking-wide uppercase">
+                           {new Date(post.createdAt).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' })}
+                         </span>
+                         {user.role === "admin" && (
+                           <button
+                             onClick={() => handleDeletePost(post.id)}
+                             className="text-nat-muted hover:text-red-400 transition-colors p-1.5 rounded-full hover:bg-red-50 -mr-1.5"
+                             title="Delete message"
+                           >
+                             <Trash2 className="h-4 w-4" />
+                           </button>
+                         )}
+                      </div>
+                    </div>
+                    <p className="text-nat-text text-[15px] leading-relaxed whitespace-pre-wrap mt-2">
+                      {post.content.split(/(#\w+)/g).map((part, i) => 
+                        part.startsWith('#') ? (
+                          <span key={i} className="text-nat-accent font-medium hover:underline cursor-pointer">{part}</span>
+                        ) : (
+                          <span key={i}>{part}</span>
+                        )
+                      )}
+                    </p>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {EMOJIS.map(emoji => {
+                        const postReactions = post.reactions || {};
+                        const count = Object.values(postReactions).filter(e => e === emoji).length;
+                        const hasReacted = postReactions[user.uid] === emoji;
+                        
+                        return (
+                          <button
+                            key={emoji}
+                            onClick={() => handleReaction(post.id, post.reactions, emoji)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm transition-all border ${hasReacted ? 'bg-[#25D366]/10 border-[#25D366]/30 shadow-sm' : 'bg-white border-nat-border hover:bg-nat-sidebar'}`}
+                          >
+                            <span>{emoji}</span>
+                            {count > 0 && <span className={`font-semibold text-xs ${hasReacted ? 'text-green-700' : 'text-nat-muted'}`}>{count}</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}

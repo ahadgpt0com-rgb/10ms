@@ -12,12 +12,13 @@ export default function PinLoginScreen() {
   const [pin, setPin] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showWarningPopup, setShowWarningPopup] = useState(false);
 
   useEffect(() => {
-    if (user && !authLoading) {
+    if (user && !authLoading && !showWarningPopup) {
       router.push("/dashboard");
     }
-  }, [user, authLoading, router]);
+  }, [user, authLoading, router, showWarningPopup]);
 
   const handlePinComplete = async (enteredPin: string) => {
     setLoading(true);
@@ -30,6 +31,7 @@ export default function PinLoginScreen() {
         
         try {
           await signInWithEmailAndPassword(auth, email, password);
+          setShowWarningPopup(true);
         } catch (e: any) {
           if (e.code === "auth/user-not-found" || e.code === "auth/invalid-credential") {
              const cred = await createUserWithEmailAndPassword(auth, email, password);
@@ -38,6 +40,7 @@ export default function PinLoginScreen() {
                role: "student",
                createdAt: Date.now()
              });
+             setShowWarningPopup(true);
           } else {
              console.error(e);
              throw new Error("Make sure Email/Password is enabled in Firebase Console.");
@@ -85,6 +88,53 @@ export default function PinLoginScreen() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [pin, loading]);
 
+  if (showWarningPopup) {
+    return (
+      <div className="min-h-screen bg-nat-bg flex flex-col items-center justify-center p-4">
+        {/* Background logic showing the page state frozen over */}
+        <div className="w-full max-w-sm flex flex-col items-center">
+          <h1 className="text-4xl font-serif italic text-nat-accent mb-2">10ms-hsc-26</h1>
+          <p className="text-nat-muted mb-12 text-xs uppercase tracking-widest font-semibold">Security Active</p>
+          
+          <div className="flex gap-6 mb-8 h-4">
+            {[0, 1, 2, 3].map((index) => (
+              <div key={index} className="w-4 h-4 rounded-full bg-nat-accent transition-all duration-300" />
+            ))}
+          </div>
+
+          <div className="grid grid-cols-3 gap-x-8 gap-y-6 opacity-30 pointer-events-none">
+            {['1','2','3','4','5','6','7','8','9'].map(num => (
+              <button key={num} className="w-16 h-16 rounded-full bg-white text-2xl flex items-center justify-center shadow-nat-card border border-nat-border">{num}</button>
+            ))}
+            <div />
+            <button className="w-16 h-16 rounded-full bg-white text-2xl flex items-center justify-center shadow-nat-card border border-nat-border">0</button>
+            <div />
+          </div>
+        </div>
+        
+        {/* Modal Overlay */}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-transparent backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-transparent shadow-none w-full max-w-sm p-8 text-center animate-in zoom-in-95 duration-300">
+            <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            </div>
+            <h2 className="text-2xl font-serif text-red-500 font-bold mb-3 tracking-tight">সতর্কবার্তা</h2>
+            <p className="text-gray-800 mb-8 font-semibold">Do not share PIN anyone.</p>
+            <button
+              onClick={() => {
+                 setShowWarningPopup(false);
+                 router.push("/dashboard");
+              }}
+              className="w-full py-4 rounded-xl font-semibold text-white bg-red-500 hover:bg-red-600 active:scale-95 transition-all shadow-md"
+            >
+              I Understand
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (authLoading || user) {
     return (
       <div className="min-h-screen bg-nat-bg flex items-center justify-center">
@@ -97,7 +147,7 @@ export default function PinLoginScreen() {
     <div className="min-h-screen bg-nat-bg flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-sm flex flex-col items-center">
         <h1 className="text-4xl font-serif italic text-nat-accent mb-2">10ms-hsc-26</h1>
-        <p className="text-nat-muted mb-12 text-xs uppercase tracking-widest font-semibold">Moga Security Active</p>
+        <p className="text-nat-muted mb-12 text-xs uppercase tracking-widest font-semibold">Security Active</p>
         
         {/* PIN Dots */}
         <div className="flex gap-6 mb-8 h-4">

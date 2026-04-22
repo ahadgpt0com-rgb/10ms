@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Inter, Lora } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/components/AuthProvider';
+import { AnalyticsTracker } from '@/components/AnalyticsTracker';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 const lora = Lora({ subsets: ['latin'], variable: '--font-serif' });
@@ -44,6 +45,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         className="min-h-screen bg-nat-bg font-sans text-nat-text antialiased"
         suppressHydrationWarning
       >
+        <AnalyticsTracker />
         <AuthProvider>
           {children}
         </AuthProvider>

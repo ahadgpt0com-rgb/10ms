@@ -46,18 +46,33 @@ service cloud.firestore {
     match /posts/{postId} {
       function isValidPost(data) {
          return data.keys().hasAll(['userId', 'content', 'createdAt']) &&
-                data.keys().size() == 3 &&
+                (data.keys().hasOnly(['userId', 'content', 'createdAt', 'reactions'])) &&
                 data.userId is string && data.userId == request.auth.uid &&
                 data.content is string && data.content.size() > 0 && data.content.size() <= 100000 &&
-                data.createdAt is number;
+                data.createdAt is number &&
+                (!('reactions' in data) || data.reactions is map);
+      }
+
+      function isValidPostUpdate(data) {
+         return data.userId == existing().userId && 
+                data.content == existing().content && 
+                data.createdAt == existing().createdAt &&
+                (!('reactions' in data) || data.reactions is map);
       }
 
       allow read: if isSignedIn() && isValidId(postId);
       allow list: if isSignedIn();
       
       allow create: if isSignedIn() && isValidId(postId) && isValidPost(incoming());
-      allow update: if false; 
+      allow update: if isSignedIn() && isValidId(postId) && isValidPostUpdate(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['reactions']); 
       allow delete: if isAdmin() && isValidId(postId);
+    }
+    
+    match /settings/analytics {
+      allow read: if isAdmin() || isSignedIn();
+      allow create: if incoming().keys().hasOnly(['totalViews']) && incoming().totalViews == 1;
+      allow update: if incoming().diff(existing()).affectedKeys().hasOnly(['totalViews']);
+      allow write: if isAdmin();
     }
     
     match /settings/{settingId} {

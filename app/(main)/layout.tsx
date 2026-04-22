@@ -59,9 +59,19 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <div className="min-h-screen bg-nat-bg flex flex-col md:flex-row">
-      {/* Sidebar Navigation */}
-      <aside className="w-full md:w-[240px] bg-nat-sidebar border-b md:border-b-0 md:border-r border-nat-border flex-shrink-0">
-        <div className="h-full flex flex-col p-4 md:p-6">
+      {/* Mobile Top Header */}
+      <div className="md:hidden flex items-center justify-between p-4 bg-nat-sidebar border-b border-nat-border sticky top-0 z-40">
+        <span className="font-serif italic text-xl tracking-tight text-nat-accent font-semibold">10ms-hsc-26</span>
+        <div className="flex items-center gap-3">
+           <button onClick={handleLogout} className="text-nat-muted hover:text-red-500 ml-1 p-1 transition-colors">
+             <LogOut className="w-5 h-5" />
+           </button>
+        </div>
+      </div>
+
+      {/* Desktop Sidebar Navigation */}
+      <aside className="hidden md:flex flex-col w-[240px] bg-nat-sidebar border-r border-nat-border flex-shrink-0 h-screen sticky top-0">
+        <div className="h-full flex flex-col p-6">
           <div className="flex items-center gap-3 mb-8">
             <span className="font-serif italic text-2xl tracking-tight text-nat-accent font-semibold">10ms-hsc-26</span>
           </div>
@@ -123,9 +133,41 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 w-full max-w-4xl mx-auto p-4 md:p-8">
+      <main className="flex-1 w-full max-w-4xl mx-auto p-4 pb-28 md:p-8 md:pb-8">
         {children}
       </main>
+
+      {/* Mobile Bottom Navigation */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-nat-border z-40 flex justify-around items-center px-2 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.1)]">
+        {navItems.map((item) => {
+          const isActive = pathname === item.href;
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex flex-col items-center gap-1.5 p-2 rounded-xl transition-colors flex-1",
+                isActive ? "text-nat-accent" : "text-nat-muted hover:text-nat-text"
+              )}
+            >
+              <div className={cn("p-1.5 rounded-full transition-colors", isActive && "bg-nat-accent/10")}>
+                 <Icon className="h-5 w-5" />
+              </div>
+              <span className="text-[10px] font-medium">{item.name === "My Journal" ? "Home" : item.name}</span>
+            </Link>
+          );
+        })}
+        <button
+          onClick={() => setIsWhatsAppModalOpen(true)}
+          className="flex flex-col items-center gap-1.5 p-2 rounded-xl transition-colors flex-1 text-nat-muted hover:text-[#25D366]"
+        >
+          <div className="p-1.5 rounded-full transition-colors">
+            <WhatsAppIcon className="h-5 w-5" />
+          </div>
+          <span className="text-[10px] font-medium">WhatsApp</span>
+        </button>
+      </div>
 
       {/* WhatsApp Modal */}
       {isWhatsAppModalOpen && (

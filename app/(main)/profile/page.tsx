@@ -7,7 +7,7 @@ import { doc, setDoc, onSnapshot } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ShieldAlert, Link as LinkIcon, Save } from "lucide-react";
+import { ShieldAlert, Link as LinkIcon, Save, Activity } from "lucide-react";
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -20,15 +20,29 @@ export default function ProfilePage() {
 
   const [groupLink, setGroupLink] = useState("");
   const [isSavingLink, setIsSavingLink] = useState(false);
+  const [totalViews, setTotalViews] = useState(0);
 
   useEffect(() => {
     if (user?.role !== "admin") return;
-    const unsub = onSnapshot(doc(db, "settings", "global"), (docSnap) => {
+    
+    // Group link
+    const unsubLink = onSnapshot(doc(db, "settings", "global"), (docSnap) => {
        if (docSnap.exists() && docSnap.data().whatsappLink) {
          setGroupLink(docSnap.data().whatsappLink);
        }
     });
-    return () => unsub();
+
+    // Analytics
+    const unsubViews = onSnapshot(doc(db, "settings", "analytics"), (docSnap) => {
+       if (docSnap.exists() && docSnap.data().totalViews) {
+         setTotalViews(docSnap.data().totalViews);
+       }
+    });
+
+    return () => {
+       unsubLink();
+       unsubViews();
+    };
   }, [user]);
 
   const handleSaveLink = async () => {
@@ -119,33 +133,52 @@ export default function ProfilePage() {
       </Card>
 
       {user.role === "admin" && (
-        <Card className="rounded-2xl shadow-nat-card border border-nat-border bg-white mt-8 overflow-hidden relative">
-          <CardContent className="p-8">
-            <div className="flex items-center gap-2 mb-2">
-              <LinkIcon className="w-5 h-5 text-nat-accent" />
-              <h3 className="text-lg font-semibold text-nat-text">WhatsApp Group Link</h3>
-            </div>
-            <p className="text-sm text-nat-muted mb-6">Update the link that users use to join the community.</p>
-            
-            <div className="flex flex-col sm:flex-row gap-4">
-              <input
-                type="url"
-                value={groupLink}
-                onChange={(e) => setGroupLink(e.target.value)}
-                placeholder="https://chat.whatsapp.com/..."
-                className="flex-1 bg-nat-sidebar border-none rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-nat-accent transition-all"
-              />
-              <Button 
-                onClick={handleSaveLink}
-                disabled={!groupLink || isSavingLink} 
-                className="rounded-xl py-6 px-8 shadow-sm"
-              >
-                <Save className="w-4 h-4 mr-2" />
-                {isSavingLink ? "Saving..." : "Save Link"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="space-y-6 mt-8">
+          <Card className="rounded-2xl shadow-nat-card border border-nat-border bg-white overflow-hidden relative">
+            <CardContent className="p-8">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Activity className="w-5 h-5 text-nat-accent" />
+                    <h3 className="text-lg font-semibold text-nat-text">Website Analytics</h3>
+                  </div>
+                  <p className="text-sm text-nat-muted">Total number of unique device visits to the platform.</p>
+                </div>
+                <div className="text-4xl font-serif text-nat-accent font-bold bg-nat-sidebar px-6 py-4 rounded-2xl">
+                  {totalViews}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl shadow-nat-card border border-nat-border bg-white overflow-hidden relative">
+            <CardContent className="p-8">
+              <div className="flex items-center gap-2 mb-2">
+                <LinkIcon className="w-5 h-5 text-nat-accent" />
+                <h3 className="text-lg font-semibold text-nat-text">WhatsApp Group Link</h3>
+              </div>
+              <p className="text-sm text-nat-muted mb-6">Update the link that users use to join the community.</p>
+              
+              <div className="flex flex-col sm:flex-row gap-4">
+                <input
+                  type="url"
+                  value={groupLink}
+                  onChange={(e) => setGroupLink(e.target.value)}
+                  placeholder="https://chat.whatsapp.com/..."
+                  className="flex-1 bg-nat-sidebar border-none rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-nat-accent transition-all"
+                />
+                <Button 
+                  onClick={handleSaveLink}
+                  disabled={!groupLink || isSavingLink} 
+                  className="rounded-xl py-6 px-8 shadow-sm"
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  {isSavingLink ? "Saving..." : "Save Link"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {user.role !== "admin" && (

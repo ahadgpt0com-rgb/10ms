@@ -13,6 +13,8 @@ export const metadata: Metadata = {
   metadataBase: new URL('https://10ms-seven.vercel.app'), // আপনার ডোমেইন এখানে সেট করা হলো
   icons: {
     icon: '/favicon.ico',
+    shortcut: '/favicon.ico',
+    apple: '/favicon.ico',
   },
   openGraph: {
     title: '10ms-hsc-26 | Student Community',
@@ -21,20 +23,20 @@ export const metadata: Metadata = {
     siteName: '10ms-hsc-26',
     images: [
       {
-        url: '/favicon.ico', // এখানে পরে ১২০০x৬৩০ সাইজের ভালো ছবি দিলে প্রিভিউ সুন্দর হবে
+        url: 'https://10ms-seven.vercel.app/favicon.ico', // এখানে পরে ১২০০x৬৩০ সাইজের ভালো ছবি দিলে প্রিভিউ সুন্দর হবে
         width: 800,
         height: 600,
         alt: '10ms-hsc-26 Community Preview',
       },
     ],
-    locale: 'en_US',
+    locale: 'bn_BD',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
     title: '10ms-hsc-26 | Student Community',
-    description: 'HSC 26 student community platform.',
-    images: ['/favicon.ico'],
+    description: 'HSC 26 দের জন্য একটি বিশেষ অনলাইন লার্নিং কমিউনিটি প্ল্যাটফর্ম।',
+    images: ['https://10ms-seven.vercel.app/favicon.ico'],
   },
 };
 

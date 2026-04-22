@@ -11,24 +11,24 @@ export const metadata: Metadata = {
   description: '10ms-hsc-26 student community platform for HSC 2026 students.',
   metadataBase: new URL('https://10ms-seven.vercel.app'),
   
-  // সাধারণ আইকন
+  // ব্রাউজার ট্যাব এবং বুকমার্ক আইকন
   icons: {
     icon: '/favicon.ico',
     shortcut: '/favicon.ico',
-    apple: '/favicon.ico', // Apple ডিভাইসের জন্য
+    apple: '/favicon.ico', 
   },
 
-  // WhatsApp এবং Facebook Messenger (Open Graph) এর জন্য
+  // Facebook, Messenger, WhatsApp, LinkedIn এর জন্য
   openGraph: {
     title: '10ms-hsc-26 | Student Community',
     description: 'HSC 26 দের জন্য সেরা অনলাইন লার্নিং এবং কমিউনিটি প্ল্যাটফর্ম। একসাথে শিখি, একসাথে বাড়ি!',
     url: 'https://10ms-seven.vercel.app',
     siteName: '10ms-hsc-26',
-    locale: 'bn_BD', // বাংলা কন্টেন্ট হলে bn_BD দেওয়া ভালো
+    locale: 'bn_BD', 
     type: 'website',
     images: [
       {
-        url: '/favicon.ico', // বড় প্রিভিউ পেতে এখানে ১০০০x৫০০ সাইজের PNG ছবি দেওয়া ভালো
+        url: '/favicon.ico', // মনে রাখবেন: এখানে বড় ব্যানার ইমেজ দিলে শেয়ার করলে দেখতে বেশি সুন্দর লাগবে
         width: 1200,
         height: 630,
         alt: '10ms-hsc-26 Banner',

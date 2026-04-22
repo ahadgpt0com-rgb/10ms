@@ -180,7 +180,7 @@ export default function PinLoginScreen() {
       {step === "pin" ? (
         <div className="w-full max-w-sm flex flex-col items-center animate-in fade-in duration-300">
           <h1 className="text-4xl font-serif italic text-nat-accent mb-2">10ms-hsc-26</h1>
-          <p className="text-nat-muted mb-12 text-xs uppercase tracking-widest font-semibold">Security Active</p>
+          <p className="text-nat-muted mb-12 text-xs uppercase tracking-widest font-semibold">Moga Security Active</p>
           
           {/* PIN Dots */}
           <div className="flex gap-6 mb-8 h-4">

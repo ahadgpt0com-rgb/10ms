@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/components/AuthProvider";
-import { auth, signInWithEmailAndPassword, createUserWithEmailAndPassword, db } from "@/lib/firebase";
+import { auth, signInWithEmailAndPassword, createUserWithEmailAndPassword, db, storage } from "@/lib/firebase";
 import { doc, setDoc, onSnapshot, collection, query, orderBy } from "firebase/firestore";
+import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,12 @@ export default function ProfilePage() {
   const [groupLink, setGroupLink] = useState("");
   const [isSavingLink, setIsSavingLink] = useState(false);
   const [totalViews, setTotalViews] = useState(0);
+  const [specialVideoLink, setSpecialVideoLink] = useState("");
+  const [isSavingVideoLink, setIsSavingVideoLink] = useState(false);
+  
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   
   const [allUsers, setAllUsers] = useState<{id: string, username: string}[]>([]);
 
@@ -29,8 +36,13 @@ export default function ProfilePage() {
     
     // Group link
     const unsubLink = onSnapshot(doc(db, "settings", "global"), (docSnap) => {
-       if (docSnap.exists() && docSnap.data().whatsappLink) {
-         setGroupLink(docSnap.data().whatsappLink);
+       if (docSnap.exists()) {
+         if (docSnap.data().whatsappLink) {
+           setGroupLink(docSnap.data().whatsappLink);
+         }
+         if (docSnap.data().specialVideoLink) {
+           setSpecialVideoLink(docSnap.data().specialVideoLink);
+         }
        }
     });
 
@@ -70,6 +82,66 @@ export default function ProfilePage() {
       alert("Failed to update link");
     } finally {
       setIsSavingLink(false);
+    }
+  };
+
+  const handleSaveVideoLink = async () => {
+    setIsSavingVideoLink(true);
+    try {
+      await setDoc(doc(db, "settings", "global"), {
+        specialVideoLink: specialVideoLink
+      }, { merge: true });
+      alert("Special video link updated globally!");
+    } catch(e) {
+      console.error(e);
+      alert("Failed to update video link");
+    } finally {
+      setIsSavingVideoLink(false);
+    }
+  };
+
+  const handleUploadVideo = async () => {
+    if (!videoFile) return;
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    try {
+      const storageRef = ref(storage, `special_videos/${Date.now()}_${videoFile.name}`);
+      const uploadTask = uploadBytesResumable(storageRef, videoFile);
+
+      uploadTask.on(
+        "state_changed",
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          setUploadProgress(progress);
+        },
+        (error) => {
+          console.error(error);
+          alert("Failed to upload video: " + error.message);
+          setIsUploading(false);
+        },
+        async () => {
+          try {
+            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+            setSpecialVideoLink(downloadURL);
+            await setDoc(doc(db, "settings", "global"), {
+               specialVideoLink: downloadURL
+            }, { merge: true });
+            alert("Video uploaded and link updated globally!");
+          } catch(e) {
+            console.error(e);
+            alert("Failed to save URL after upload");
+          } finally {
+            setIsUploading(false);
+            setVideoFile(null);
+            setUploadProgress(0);
+          }
+        }
+      );
+    } catch(e: any) {
+      console.error(e);
+      alert("Failed to initiate upload: " + e.message);
+      setIsUploading(false);
     }
   };
 
@@ -188,6 +260,59 @@ export default function ProfilePage() {
                   <Save className="w-4 h-4 mr-2" />
                   {isSavingLink ? "Saving..." : "Save Link"}
                 </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl shadow-nat-card border border-nat-border bg-white overflow-hidden relative">
+            <CardContent className="p-8">
+              <div className="flex items-center gap-2 mb-2">
+                <LinkIcon className="w-5 h-5 text-nat-accent" />
+                <h3 className="text-lg font-semibold text-nat-text">Special Video Link (Asheka)</h3>
+              </div>
+              <p className="text-sm text-nat-muted mb-6">Update the special video link shown to &quot;Asheka&quot; (URL or Upload).</p>
+              
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <input
+                    type="url"
+                    value={specialVideoLink}
+                    onChange={(e) => setSpecialVideoLink(e.target.value)}
+                    placeholder="https://cdn.discordapp.com/..."
+                    className="flex-1 bg-nat-sidebar border-none rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-nat-accent transition-all"
+                  />
+                  <Button 
+                    onClick={handleSaveVideoLink}
+                    disabled={!specialVideoLink || isSavingVideoLink || isUploading} 
+                    className="rounded-xl py-6 px-8 shadow-sm"
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    {isSavingVideoLink ? "Saving..." : "Save Link"}
+                  </Button>
+                </div>
+
+                <div className="h-px bg-nat-border w-full my-2"></div>
+
+                <div className="flex flex-col sm:flex-row gap-4 items-center">
+                  <input 
+                    type="file" 
+                    accept="video/*" 
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files.length > 0) {
+                        setVideoFile(e.target.files[0]);
+                      }
+                    }}
+                    className="flex-1 text-sm text-nat-muted file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-nat-accent file:text-white hover:file:bg-pink-600 focus:outline-none cursor-pointer border border-nat-border rounded-xl p-2"
+                  />
+                  <Button 
+                    onClick={handleUploadVideo}
+                    disabled={!videoFile || isUploading} 
+                    className="rounded-xl py-6 px-8 shadow-sm whitespace-nowrap min-w-[140px]"
+                    variant="outline"
+                  >
+                    {isUploading ? `Uploading ${Math.round(uploadProgress)}%` : "Upload Video"}
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
